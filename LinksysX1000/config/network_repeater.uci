@@ -1,0 +1,42 @@
+# =============================================================================
+# Linksys X1000 — UCI Network Config: Wi-Fi REPEATER mode (relayd)
+# =============================================================================
+# wlan0 connects to upstream AP as STA.
+# wlan0 also runs a local AP for clients.
+# relayd bridges the two at L3.
+# LAN Ethernet ports also bridged into local AP network.
+#
+# Requires: opkg install relayd  (included in build image)
+#
+# Apply:
+#   scp config/network_repeater.uci root@192.168.1.1:/etc/config/network
+#   ssh root@192.168.1.1 "uci commit network && /etc/init.d/network restart"
+#   /etc/init.d/relayd enable && /etc/init.d/relayd start
+# =============================================================================
+
+config interface 'loopback'
+	option device 'lo'
+	option proto 'static'
+	option ipaddr '127.0.0.1'
+	option netmask '255.0.0.0'
+
+config globals 'globals'
+	option ula_prefix 'fd00::/48'
+
+# ─── Upstream (STA) — wlan0 connects to upstream router ──────────────────────
+config interface 'wwan'
+	option device 'wlan0'
+	option proto 'dhcp'
+
+# ─── Local LAN: wired ports + local AP ───────────────────────────────────────
+config device
+	option name 'br-lan'
+	option type 'bridge'
+	list ports 'eth1'               # LAN switch ports 1-3
+
+config interface 'lan'
+	option device 'br-lan'
+	option proto 'static'
+	# Use a DIFFERENT subnet than upstream (e.g., upstream=192.168.1.x → use 192.168.2.x)
+	option ipaddr '192.168.2.1'
+	option netmask '255.255.255.0'

@@ -1,0 +1,40 @@
+# =============================================================================
+# Linksys X1000 — UCI Bandwidth Monitor Config: nlbwmon
+# =============================================================================
+# nlbwmon tracks per-host download/upload traffic with persistent history.
+# Data survives reboots (stored on jffs2 overlay).
+# View in LuCI: Statistics → Bandwidth Monitor
+# View via CLI: nlbw -c show
+#
+# Apply:
+#   scp config/nlbwmon.uci root@192.168.1.1:/etc/config/nlbwmon
+#   ssh root@192.168.1.1 "uci commit nlbwmon && /etc/init.d/nlbwmon enable && /etc/init.d/nlbwmon start"
+# =============================================================================
+
+config nlbwmon 'config'
+	# Network interface(s) to monitor
+	# For AP/Repeater mode: monitor br-lan (all LAN+Wi-Fi clients)
+	# For PPPoE mode: monitor pppoe-wan for total WAN usage
+	list monitored_interfaces 'br-lan'
+	list monitored_interfaces 'pppoe-wan'
+
+	# Polling interval in seconds (lower = more accurate, more CPU)
+	option poll_interval '30'
+
+	# Traffic database location — stored on jffs2 (survives reboot)
+	option database_directory '/var/lib/nlbwmon'
+
+	# Commit to persistent storage every N seconds
+	option commit_interval '3600'    # hourly
+
+	# How many days of history to retain
+	option database_limit '366'      # 1 year
+
+	# Subnet to track (only hosts within this subnet are recorded individually)
+	# For AP mode (upstream router does DHCP): adjust to upstream subnet
+	list tracked_subnet '192.168.100.0/24'  # PPPoE/gateway mode LAN subnet
+	# list tracked_subnet '192.168.1.0/24'  # AP mode — upstream subnet
+	# list tracked_subnet '192.168.2.0/24'  # Repeater mode LAN subnet
+
+	# Protocol version
+	option protocol_version '1'
