@@ -1,0 +1,59 @@
+# =============================================================================
+# Linksys X1000 — UCI Network Config: PPPoE + VLAN 30
+# ISP VLAN ID: 30  (confirmed)
+# DSL port: UNUSED — WAN is the physical RJ-45 WAN Ethernet port
+#
+# Apply:
+#   scp config/network_pppoe_vlan.uci root@192.168.1.1:/etc/config/network
+#   ssh root@192.168.1.1 "uci commit network && /etc/init.d/network restart"
+# =============================================================================
+
+config interface 'loopback'
+	option device 'lo'
+	option proto 'static'
+	option ipaddr '127.0.0.1'
+	option netmask '255.0.0.0'
+
+config globals 'globals'
+	option ula_prefix 'fd00::/48'
+
+# ─── LAN side — clients get DHCP from this device ───────────────────────────
+
+config device
+	option name 'br-lan'
+	option type 'bridge'
+	list ports 'eth1'               # LAN switch (ports 1-3)
+
+config interface 'lan'
+	option device 'br-lan'
+	option proto 'static'
+	option ipaddr '192.168.100.1'
+	option netmask '255.255.255.0'
+	option ip6assign '60'
+
+# ─── WAN side: VLAN 30 sub-interface on the physical WAN Ethernet port ───────
+
+config device
+	option name 'eth0.30'           # ISP VLAN ID = 30
+	option type '8021q'
+	option ifname 'eth0'
+	option vid '30'
+
+# ─── PPPoE on the VLAN 30 device ─────────────────────────────────────────────
+
+config interface 'wan'
+	option device 'eth0.30'
+	option proto 'pppoe'
+	option username 'YOUR_ISP_USERNAME'     # ← fill in
+	option password 'YOUR_ISP_PASSWORD'     # ← fill in
+	option ipv6 'auto'
+	option keepalive '10 5'                 # LCP echo: 10 s interval, 5 failures
+	option demand '0'                       # always-on
+
+# ─── IPv6 WAN (optional — remove if ISP doesn't supply IPv6) ─────────────────
+
+config interface 'wan6'
+	option device 'eth0.30'
+	option proto 'dhcpv6'
+	option reqaddress 'try'
+	option reqprefix 'auto'
