@@ -8,124 +8,81 @@
 +// Flash: MXIC MX25L6406E (8 MB SPI NOR)
 +// Wi-Fi: BCM43217KMLG on PCIe bus → brcmsmac driver
 +// DSL:   Annex A (POTS) — disabled, no open-source driver
-
+ 
  /dts-v1/;
-
+ 
 -/* D-Link DSL-2750B rev B1 */
 +/* Linksys X1000 (Annex A) */
-
+ 
  #include "bcm63281.dtsi"
-
+ 
 @@ -10,14 +14,14 @@
  / {
--       model = "D-Link DSL-2750B rev B1";
--       compatible = "dlink,dsl-2750b-b1", "brcm,bcm63281";
-+       model = "Linksys X1000";
-+       compatible = "linksys,x1000", "brcm,bcm63281";
-
-        aliases {
-                serial0 = &uart0;
-        };
-
-        chosen {
-                bootargs = "console=ttyS0,115200n8";
-                stdout-path = "serial0:115200n8";
-        };
+-	model = "D-Link DSL-2750B rev B1";
+-	compatible = "dlink,dsl-2750b-b1", "brcm,bcm63281";
++	model = "Linksys X1000";
++	compatible = "linksys,x1000", "brcm,bcm63281";
+ 
+ 	aliases {
+ 		serial0 = &uart0;
+ 	};
+ 
+ 	chosen {
+ 		bootargs = "console=ttyS0,115200n8";
+ 		stdout-path = "serial0:115200n8";
+ 	};
  };
-
+ 
  &pflash {
--       /* 8 MB SPI NOR */
-+       /* 8 MB MXIC MX25L6406E SPI NOR */
-        status = "okay";
-
-        partitions {
-                compatible = "fixed-partitions";
-                #address-cells = <1>;
-                #size-cells = <1>;
-
-+               /* CFE bootloader — NEVER overwrite */
-                partition@0 {
--                       label = "cfe";
-+                       label = "bootloader";
-                        reg = <0x000000 0x010000>;  /* 64 KB */
-                        read-only;
-                };
-
-+               /* Firmware: kernel + squashfs rootfs (~7.875 MB usable) */
-                partition@10000 {
-                        label = "firmware";
-                        reg = <0x010000 0x7e0000>;
-                };
-
-+               /* CFE NVRAM — board ID, MAC addresses — preserve on upgrade */
-                partition@7f0000 {
-                        label = "nvram";
-                        reg = <0x7f0000 0x010000>;  /* 64 KB */
-                };
-        };
+-	/* 8 MB SPI NOR */
++	/* 8 MB MXIC MX25L6406E SPI NOR */
+ 	status = "okay";
+ 
+ 	partitions {
+ 		compatible = "fixed-partitions";
+ 		#address-cells = <1>;
+ 		#size-cells = <1>;
+ 
++		/* CFE bootloader — NEVER overwrite */
+ 		partition@0 {
+-			label = "cfe";
++			label = "bootloader";
+ 			reg = <0x000000 0x010000>;  /* 64 KB */
+ 			read-only;
+ 		};
+ 
++		/* Firmware: kernel + squashfs rootfs (~7.875 MB usable) */
+ 		partition@10000 {
+ 			label = "firmware";
+ 			reg = <0x010000 0x7e0000>;
+ 		};
+ 
++		/* CFE NVRAM — board ID, MAC addresses — preserve on upgrade */
+ 		partition@7f0000 {
+ 			label = "nvram";
+ 			reg = <0x7f0000 0x010000>;  /* 64 KB */
+ 		};
+ 	};
  };
-
+ 
 -/* DSL modem node — Broadcom closed-source only, removed */
 -&dsl {
--       status = "disabled";
+-	status = "disabled";
 -};
 +/*
 + * DSL/ADSL node intentionally omitted.
 + * X1000 repurposed as AP / PPPoE-router / Repeater.
 + * No Broadcom open-source ADSL driver exists.
 + */
-
+ 
  &ethernet {
-        status = "okay";
-+       /* MAC base address read from CFE NVRAM at boot */
-        nvmem-cells = <&macaddr_nvram>;
-        nvmem-cell-names = "mac-address";
+ 	status = "okay";
++	/* MAC base address read from CFE NVRAM at boot */
+ 	nvmem-cells = <&macaddr_nvram>;
+ 	nvmem-cell-names = "mac-address";
  };
-
+ 
 +/*
 + * PCIe bus — hosts BCM43217KMLG Wi-Fi chip
 + * Driver: brcmsmac (mac80211 SoftMAC)
-+ * Firmware: brcm/brcmsmac-ag-43217.fw (from linux-firmware)
-+ * Supports: 802.11n 2.4 GHz, 2×2 MIMO, 20/40 MHz channels
-+ * AP mode: supported (verify with `iw list` after boot)
 + */
-+&pcie {
-+       status = "okay";
-+};
-
- &leds {
-        status = "okay";
-
-+       /* LED GPIO assignments — verify against X1000 schematic */
-        led-power {
--               label = "dsl2750b:green:power";
-+               label = "x1000:green:power";
-                gpios = <&gpio 22 GPIO_ACTIVE_LOW>;
-                default-state = "on";
-        };
-
-        led-internet {
--               label = "dsl2750b:green:internet";
-+               label = "x1000:green:internet";
-                gpios = <&gpio 23 GPIO_ACTIVE_LOW>;
-        };
-
-        led-wlan {
--               label = "dsl2750b:green:wlan";
-+               label = "x1000:green:wlan";
-                gpios = <&gpio 27 GPIO_ACTIVE_LOW>;
-                linux,default-trigger = "phy0tpt";
-        };
-+
-+       led-wps {
-+               label = "x1000:green:wps";
-+               gpios = <&gpio 26 GPIO_ACTIVE_LOW>;
-+       };
-+
-+       led-dsl {
-+               /* Repurpose DSL LED as "WAN activity" */
-+               label = "x1000:green:wan";
-+               gpios = <&gpio 24 GPIO_ACTIVE_LOW>;
-+               linux,default-trigger = "netdev";
-+       };
- };
