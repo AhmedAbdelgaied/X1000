@@ -23,33 +23,53 @@ jobs:
 
       - name: Clone OpenWrt 23.05.5
         run: |
-          git clone -b v23.05.5 --depth 1 https://github.com/openwrt/openwrt.git ~/openwrt
+          git clone -b v23.05.5 --depth 1 https://github.com/openwrt/openwrt.git openwrt
 
       - name: Apply Linksys X1000 Patches
         run: |
-          cd ~/openwrt
-          patch -p1 < $GITHUB_WORKSPACE/build/patches/001-x1000-dts.patch
-          patch -p1 < $GITHUB_WORKSPACE/build/patches/002-x1000-profile.patch
+          cd openwrt
+          patch -p1 < "${{ github.workspace }}/build/patches/001-x1000-dts.patch"
+          patch -p1 < "${{ github.workspace }}/build/patches/002-x1000-profile.patch"
+
+      - name: Remove custom default network/wireless configs
+        run: |
+          # Ensure no pre-built VLAN or SSID defaults are copied into the image
+          rm -rf openwrt/files
 
       - name: Update Feeds
         run: |
-          cd ~/openwrt
+          cd openwrt
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      - name: Copy Config & Run Defconfig
+      - name: Configure target and packages
         run: |
-          cd ~/openwrt
-          cp $GITHUB_WORKSPACE/build/.config .config
+          cd openwrt
+          rm -f .config
+          make defconfig
+
+          ./scripts/config --enable CONFIG_TARGET_bcm63xx
+          ./scripts/config --enable CONFIG_TARGET_bcm63xx_generic
+          ./scripts/config --set-str CONFIG_TARGET_PROFILE "DEVICE_linksys_x1000"
+
+          # Required for LuCI web interface
+          ./scripts/config --enable CONFIG_PACKAGE_luci
+
+          # Required for PPPoE WAN setup with VLAN tag
+          ./scripts/config --enable CONFIG_PACKAGE_ppp-mod-pppoe
+
+          # Required for WiFi AP/client operation and scanning
+          ./scripts/config --enable CONFIG_PACKAGE_wpad-basic
+
           make defconfig
 
       - name: Build Firmware Image
         run: |
-          cd ~/openwrt
+          cd openwrt
           make -j$(nproc) V=s
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v3
         with:
           name: Linksys-X1000-OpenWrt-Firmware
-          path: ~/openwrt/bin/targets/bcm63xx/generic/*linksys_x1000*.bin
+          path: openwrt/bin/targets/bcm63xx/generic/*linksys_x1000*.bin
